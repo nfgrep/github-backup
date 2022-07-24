@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# TODO: Write some comment on the config.json format
+# TODO: Get more than 100 repos
+
+
+if ! jq --version &> /dev/null; then
+	echo "jq is not installed, please install it first"
+	exit
+fi
+
+# Get values from provided config
+CONFIG=$(cat $1)
+PAT=$(echo $CONFIG | jq .token -r)
+BACKUP_FORKS=$(echo $CONFIG | jq .forks -r)
+BACKUP_ORG_REPOS=$(echo $CONFIG | jq .orgs -r)
+BACKUP_DIR=$(echo $CONFIG | jq .directory -r)
+
+echo "Downloading list of repos ..."
+REPOS=$(curl -H "Accept: application/vnd.github+json" -H "Authorization: token $PAT" https://api.github.com/user/repos?per_page=100)
+
+# For each repo, git pull if exist, clone if not
+while read REPO; do
+	REPO_SLUG=$(echo "$REPO" | jq .full_name -r)
+	REPO_URL="https://$PAT@github.com/$REPO_SLUG.git"
+	LOCAL_REPO_PATH="$BACKUP_DIR/$REPO_SLUG"
+
+	printf "\nBacking up $REPO_SLUG ...\n"
+
+	IS_FORK=$(echo $REPO | jq .fork -r)
+	if [ $IS_FORK == "true" ]; then
+		if [ $BACKUP_FORKS != "true" ]; then
+			echo "$REPO_SLUG is a fork, skipping ..."
+			continue
+		fi
+	fi
+
+	REPO_OWNER_TYPE=$(echo $REPO | jq .owner.type -r)
+	if [ $REPO_OWNER_TYPE == "Organization" ]; then
+		if [ $BACKUP_ORG_REPOS != "true" ]; then
+			echo "$REPO_SLUG is a repo from an org, skipping"
+			continue
+		fi
+	fi
+
+	# To check if the repo exists, we just check if a .git exists in a directory of its name
+	if [ -d "$LOCAL_REPO_PATH/.git" ]; then
+		git -C $LOCAL_REPO_PATH pull $REPO_URL
+	else
+		git clone $REPO_URL $LOCAL_REPO_PATH
+	fi
+done <<<$(echo "$REPOS" | jq -c .[])
