@@ -7,7 +7,7 @@ A bash script that backs up stuff from github
 Where `config.json` looks like:
 ```json
 {
-  "directory": "/path/to/backed-up/repos/"
+  "directory": "/path/to/backed/up/repos/"
   "token": "$PAT",
   "forks": "false",
   "orgs": "false",
