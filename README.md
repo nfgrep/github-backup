@@ -9,7 +9,7 @@ Where `config.json` looks like:
 {
   "directory": "/path/to/backed/up/repos/"
   "token": "$PAT",
-  "forks": "false",
+  "forks": "true",
   "orgs": "false",
 }
 ```
